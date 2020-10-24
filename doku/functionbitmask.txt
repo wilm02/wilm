@@ -1,0 +1,66 @@
+﻿aus: AHA-HTTP-Interface.pdf und diversen Internetforen
+
+       |         | HTTP-Interface
+-------+---------+----------------------------------------------------------------
+0x0001 | Bit  0: | HAN-FUN Gerät
+0x0002 | Bit  1: | 546E-Konfiguration ???
+0x0004 | Bit  2: | Licht/Lampe
+0x0008 | Bit  3: | 
+0x0010 | Bit  4: | Alarm-Sensor
+0x0020 | Bit  5: | AVM-Button
+0x0040 | Bit  6: | Heizkörperregler
+0x0080 | Bit  7: | Energie Messgerät
+0x0100 | Bit  8: | Temperatursensor
+0x0200 | Bit  9: | Schaltsteckdose
+0x0400 | Bit 10: | AVM DECT Repeater
+0x0800 | Bit 11: | Mikrofon
+0x1000 | Bit 12: | 546E-Statistik ???
+0x2000 | Bit 13: | HAN-FUN-Unit
+0x4000 | Bit 14: | 
+0x8000 | Bit 15: | an-/ausschaltbares Gerät/Steckdose/Lampe/Aktor
+       | Bit 16: | Gerät mit einstellbarem Dimm-, Höhen- bzw. Niveau-Level
+       | Bit 17: | Lampe mit einstellbarer Farbe/Farbtemperatur
+
+0x1280 (12,9,7) 546E
+0x380 (9,8,7) DECT210
+
+Solltemperatur erscheint+Batteriestand bei 0x1170
+
+
+Identifier                                                                                                                                                   hex    Gerät
+                                                  functionbitmask="4736"   fwversion="06.50"   manufacturer="AVM"    productname="FRITZ!Powerline 546E">    1280    546E
+                                                  functionbitmask="896"    fwversion="04.17"   manufacturer="AVM"    productname="FRITZ!DECT 210">           380    210
+                                                                                               
+<device identifier="xyz-abcd"          id="2000"  functionbitmask="8208"   fwversion="0.0"     manufacturer="0x2c3c" productname="HAN-FUN">                 2010    Bewegungsmelder: Unit #0
+                                                                   8208               0.0                    0x0feb                                         2010    DC Magenta - Fensterkontakt
+                                                                   32                 04.86                  AVM                                              20    DECT 400
+                                                                   1024               03.64                  AVM                                             400    FRITZ!DECT Repeater
+                                                                                                                                                       
+<device identifier="08761 0014219"     id="20"    functionbitmask="2944"   fwversion="04.16"   manufacturer="AVM"    productname="FRITZ!DECT 200">           b80
+<device identifier="08761 0053113"     id="21"    functionbitmask="2944"   fwversion="04.16"   manufacturer="AVM"    productname="FRITZ!DECT 200">           b80
+<device identifier="08761 0517070"     id="32"    functionbitmask="2944"   fwversion="04.16"   manufacturer="AVM"    productname="FRITZ!DECT 200">           b80
+<device identifier="11630 0012900"     id="31"    functionbitmask="2944"   fwversion="04.16"   manufacturer="AVM"    productname="FRITZ!DECT 200">           b80
+<device identifier="08761 0237459"     id="22"    functionbitmask="2944"   fwversion="04.16"   manufacturer="AVM"    productname="FRITZ!DECT 200">           b80
+<device identifier="11657 0101071"     id="25"    functionbitmask="2944"   fwversion="04.17"   manufacturer="AVM"    productname="FRITZ!DECT 210">           b80
+<device identifier="11934 0144995"     id="407"   functionbitmask="1"      fwversion="31.20"   manufacturer="0x0feb" productname="HAN-FUN">                    1
+<device identifier="11934 0155715"     id="408"   functionbitmask="1"      fwversion="31.20"   manufacturer="0x0feb" productname="HAN-FUN">                    1
+<device identifier="11324 0495855"     id="409"   functionbitmask="1"      fwversion="00.00"   manufacturer="0x2c3c" productname="HAN-FUN">                    1    Bewegungsmelder
+<device identifier="11934 0144995-2"   id="2000"  functionbitmask="8200"   fwversion="0.0"     manufacturer="0x0feb" productname="HAN-FUN">                 2008  
+<device identifier="11934 0144995-1"   id="2001"  functionbitmask="8200"   fwversion="0.0"     manufacturer="0x0feb" productname="HAN-FUN">                 2008
+<device identifier="11934 0155715-2"   id="2002"  functionbitmask="8200"   fwversion="0.0"     manufacturer="0x0feb" productname="HAN-FUN">                 2008
+<device identifier="11934 0155715-1"   id="2003"  functionbitmask="8200"   fwversion="0.0"     manufacturer="0x0feb" productname="HAN-FUN">                 2008
+<device identifier="11324 0495855-1"   id="2004"  functionbitmask="8208"   fwversion="0.0"     manufacturer="0x2c3c" productname="HAN-FUN">                 2010
+<device identifier="24:65:11:C8:CE:71" id="20000" functionbitmask="640"    fwversion="07.12"   manufacturer="AVM"    productname="FRITZ!Powerline 546E">     280
+
+"identifier":"grp5665DB-3A12B8E79"   ,"id":"900","functionbitmask":"4160","fwversion":"1.0"  ,"manufacturer":"AVM" ,"name":"themogroup","hkr"               1040
+"identifier":"099950224310"          ,"id":"16" ,"functionbitmask":"320" ,"fwversion":"04.89","manufacturer":"AVM" ,"productname":"FRITZ!DECT 301"           140
+"identifier":"099950170923"          ,"id":"17" ,"functionbitmask":"320" ,"fwversion":"04.89","manufacturer":"AVM" ,"productname":"FRITZ!DECT 301"           140
+"identifier":"099950222926"          ,"id":"18" ,"functionbitmask":"320" ,"fwversion":"04.89","manufacturer":"AVM" ,"productname":"FRITZ!DECT 301"           140
+"identifier":"116300053380"          ,"id":"20" ,"functionbitmask":"2944","fwversion":"04.16","manufacturer":"AVM" ,"productname":"FRITZ!DECT 200"           b80
+"identifier":"099950283953"          ,"id":"22" ,"functionbitmask":"320" ,"fwversion":"04.89","manufacturer":"AVM" ,"productname":"FRITZ!DECT 301"           140
+"identifier":"116300094434"          ,"id":"24" ,"functionbitmask":"2944","fwversion":"04.16","manufacturer":"AVM" ,"productname":"FRITZ!DECT 200"           b80
+"identifier":"116300093987"          ,"id":"25" ,"functionbitmask":"2944","fwversion":"04.16","manufacturer":"AVM" ,"productname":"FRITZ!DECT 200"           b80
+"identifier":"116300094089"          ,"id":"26" ,"functionbitmask":"2944","fwversion":"04.16","manufacturer":"AVM" ,"productname":"FRITZ!DECT 200"           b80
+"identifier":"099950283960"          ,"id":"28" ,"functionbitmask":"320" ,"fwversion":"04.89","manufacturer":"AVM" ,"productname":"FRITZ!DECT 301"           140
+"identifier":"099950487635"          ,"id":"29" ,"functionbitmask":"320" ,"fwversion":"04.89","manufacturer":"AVM" ,"productname":"FRITZ!DECT 301"           140
+"identifier":"grpCBEEB3-39ED8FDDF"   ,"id":"900","functionbitmask":"4160","fwversion":"1.0"  ,"manufacturer":"AVM" ,"name":"Wohnbereich","hkr"              1040

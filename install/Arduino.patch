@@ -1,0 +1,24 @@
+--- Arduino.cpp.org	2020-06-25 10:17:35.733481700 +0200
++++ Arduino.cpp	2020-06-25 10:17:35.700043400 +0200
+@@ -18,11 +18,20 @@
+ 
+ #include <unistd.h>
+ 
++// only necessary to pass compilation of ESP8266HTTPUpdateServer
++uint32_t _FS_start=0;
++uint32_t _FS_end=0;
++extern "C" void close_all_fs(void) {}
++
+ extern "C" unsigned long millis()
+ {
+     timeval time;
+     gettimeofday(&time, NULL);
+-    return (time.tv_sec * 1000) + (time.tv_usec / 1000);
++	// after booting=start application: millis starts at 0 ms
++	static long start=-1;
++	if (start==-1)
++			start=(time.tv_sec * 1000) + (time.tv_usec / 1000);
++	return (time.tv_sec * 1000) + (time.tv_usec / 1000) - start;
+ }
+ 
+ extern "C" unsigned long micros()

@@ -1,0 +1,35 @@
+# Die Funktion XORCRYPT() in wilm/src/lib.sh verschlüsselt meine Passwörter und erleichtert mit das Veröffentlichen.
+# Natürlich muss dieser Code entsprechend angepasst werden.
+
+(
+# Installation
+# ============
+#
+cd wilm/install
+. refillcache.sh   # => wilm/install/cache/*.*
+. install.sh       # => wilm/devel/*.*
+)
+
+(
+# Binary für ESP8266 erzeugen
+# ===========================
+#
+cd wilm/src
+. make_bin.sh      # => wilm/src/bin/2020xxxx_xxxxxxwilm.bin
+)
+
+(
+# Simulation erzeugen
+# ===================
+#
+cd wilm/src
+. make_sim.sh      # => wilm/devel/esp8266/tests/host/bin/wilm/wilm
+)
+
+(
+# Simulation starten
+# ==================
+#
+cd wilm/src
+. run_sim.sh      # => wilm/devel/esp8266/tests/host/bin/wilm/wilm
+)

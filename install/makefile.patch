@@ -1,0 +1,18 @@
+--- Makefile.org	2020-06-25 10:17:35.752217600 +0200
++++ Makefile	2020-06-25 10:38:04.016206400 +0200
+@@ -252,7 +252,6 @@
+ 		ESP8266WiFiSTA-WPS.cpp \
+ 		ESP8266WiFiSTA.cpp \
+ 		ESP8266WiFiScan.cpp \
+-		WiFiClient.cpp \
+ 		WiFiUdp.cpp \
+ 		WiFiClientSecureBearSSL.cpp \
+ 		WiFiServerSecureBearSSL.cpp \
+@@ -283,6 +282,7 @@
+ 	ClientContextTools.cpp \
+ 	MockWiFiServerSocket.cpp \
+ 	MockWiFiServer.cpp \
++	MockWiFiClient.cpp \
+ 	UdpContextSocket.cpp \
+ 	HostWiring.cpp \
+ 	MockEsp.cpp \

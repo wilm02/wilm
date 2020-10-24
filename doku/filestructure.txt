@@ -1,0 +1,7 @@
+wilm/install         Installations-Skript der Entwicklungsumgebung mit Patches
+wilm/install/cache   <===== wird von refillcache.sh erstellt: Kopie der download-zip-Files für Compiler und Library
+wilm/devel           <===== wird von install.sh erstellt: ausgepackter Compiler und Library
+wilm/doku            Beschreibungen...
+wilm/test            Skripte zum Testen
+wilm/test/fbsim      Simulation der Fbox
+wilm/src             Quellen wilm.ino

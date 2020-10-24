@@ -1,0 +1,24 @@
+--- MockWiFiClient.cpp.org	2020-06-25 10:46:52.174267000 +0200
++++ MockWiFiClient.cpp	2020-06-25 10:17:35.740342600 +0200
+@@ -1,6 +1,5 @@
+ /*
+-  WiFiClient.cpp - TCP/IP client for esp8266, mostly compatible
+-                   with Arduino WiFi shield library
++  Arduino emulation - WiFiClient
+ 
+   Copyright (c) 2014 Ivan Grokhotkov. All rights reserved.
+   This file is part of the esp8266 core for Arduino environment.
+@@ -276,7 +275,12 @@
+ 
+ int WiFiClient::read(uint8_t* buf, size_t size)
+ {
+-    return (int) _client->read(reinterpret_cast<char*>(buf), size);
++// this does not work on host!
++//    return (int) _client->read(reinterpret_cast<char*>(buf), size);
++	int len=0;
++	while (available()&&(len<(int)size))
++		buf[len++]=read();
++	return len;
+ }
+ 
+ int WiFiClient::peek()

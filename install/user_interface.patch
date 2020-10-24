@@ -1,0 +1,43 @@
+--- user_interface.cpp.org	2020-07-16 10:16:33.753380700 +0200
++++ user_interface.cpp	2020-07-16 10:18:03.320454800 +0200
+@@ -114,6 +114,18 @@
+ 	(void)type;
+ }
+ 
++char* GetGateway() // quick hack
++{
++	static char gateway[20] = {0};
++	FILE* fp = popen("route -n | grep 'UG ' | awk '{print $2}'", "r");
++	
++	if(fgets(gateway, sizeof(gateway), fp) != NULL)
++		if(strchr(gateway, '\n'))
++			*strchr(gateway, '\n')=0;
++	pclose(fp);
++	return gateway;
++}
++
+ uint32_t global_ipv4_netfmt = 0; // global binding
+ 
+ netif netif0;
+@@ -123,6 +135,7 @@
+ 	struct ifaddrs * ifAddrStruct = NULL, * ifa = NULL;
+ 	uint32_t ipv4 = lwip_htonl(0x7f000001);
+ 	uint32_t mask = lwip_htonl(0xff000000);
++	uint32_t gate = inet_addr(GetGateway());
+ 
+ 	if (getifaddrs(&ifAddrStruct) != 0)
+ 	{
+@@ -167,11 +180,11 @@
+ 	{
+ 		info->ip.addr = ipv4;
+ 		info->netmask.addr = mask;
+-		info->gw.addr = ipv4;
++		info->gw.addr = gate;
+ 
+ 		netif0.ip_addr.addr = ipv4;
+ 		netif0.netmask.addr = mask;
+-		netif0.gw.addr = ipv4;
++		netif0.gw.addr = gate;
+ 		netif0.flags = NETIF_FLAG_IGMP | NETIF_FLAG_UP | NETIF_FLAG_LINK_UP;
+ 		netif0.next = nullptr;
+ 	}

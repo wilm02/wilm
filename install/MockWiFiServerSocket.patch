@@ -1,0 +1,11 @@
+--- MockWiFiServerSocket.cpp.org	2020-06-25 10:17:35.739338500 +0200
++++ MockWiFiServerSocket.cpp	2020-06-25 10:17:35.715914500 +0200
+@@ -138,3 +138,8 @@
+ 		::close(pcb2int(_pcb));
+ 	_pcb = int2pcb(-1);
+ }
++
++void WiFiServer::stop ()
++{
++	close ();
++}

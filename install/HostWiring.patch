@@ -1,0 +1,87 @@
+--- HostWiring.cpp.org	2020-06-25 10:17:35.735433800 +0200
++++ HostWiring.cpp	2020-06-25 10:17:35.711031900 +0200
+@@ -78,8 +78,81 @@
+ 
+ int digitalRead(uint8_t pin)
+ {
+-	VERBOSE("digitalRead(%d)\n", pin);
++	#define BUTTON_FILE "./button"
++	FILE*fp=fopen(BUTTON_FILE, "r");
++	if (fp!=NULL) {
++		fclose(fp);
++		return 0;
++	}
++	return 1;
++}
+ 
+-	// pin 0 is most likely a low active input
+-	return pin ? 0 : 1;
++// simulation of RTC memory
++extern "C" {
++	#define RTC_FILE "./rtc"
++	int Rtc[128];
++	bool system_rtc_mem_read(uint8 src_addr, void *des_addr, uint16 load_size){
++		int i;
++		for(i=0; i<128;i++)
++			Rtc[i]=0xdeadbeef;
++		FILE*fp=fopen(RTC_FILE,"r");
++		if(fp!=NULL){
++			for(i=0; i<128;i++)
++				if (fscanf(fp,"%08x\n", &Rtc[i])==0)
++					break;
++			fclose(fp);
++		}
++		if (load_size!=4){
++			fprintf(stderr, MOCK "rtc: load_size!=4\n");
++			exit(-1);
++		}
++		if (src_addr<64){
++			fprintf(stderr, MOCK "rtc: src_addr<64\n");
++			exit(-1);
++		}
++		if (src_addr>=192){
++			fprintf(stderr, MOCK "rtc: src_addr>=192\n");
++			exit(-1);
++		}
++		*(int*)des_addr=Rtc[src_addr-64];
++		return 1;
++	}
++	bool system_rtc_mem_write(uint8 src_addr, const void *des_addr, uint16 load_size){
++		int i;
++		for(i=0; i<128;i++)
++			Rtc[i]=0xdeadbeef;
++		FILE*fp=fopen(RTC_FILE,"r");
++		if(fp!=NULL){
++			for(i=0; i<128;i++)
++				if (fscanf(fp,"%08x\n", &Rtc[i])==0) {
++					fclose(fp);
++					break;
++				}
++			fclose(fp);
++		}
++		if (load_size!=4){
++			fprintf(stderr, MOCK "rtc: load_size!=4\n");
++			exit(-1);
++		}
++		if (src_addr<64){
++			fprintf(stderr, MOCK "rtc: src_addr<64\n");
++			exit(-1);
++		}
++		if (src_addr>=192){
++			fprintf(stderr, MOCK "rtc: src_addr>=192\n");
++			exit(-1);
++		}
++		Rtc[src_addr-64]=*(int*)des_addr;
++		fp=fopen(RTC_FILE,"w");
++		if(fp!=NULL){
++			for(i=0; i<128;i++) {
++				fprintf(fp,"%08x\n", Rtc[i]);
++			}
++			fclose(fp);
++		} else {
++			fprintf(stderr, MOCK "rtc: file rights NIO\n");
++			exit(-1);
++		}
++		return 1;
++	}
+ }
