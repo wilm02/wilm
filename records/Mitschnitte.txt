@@ -1,0 +1,9 @@
+Diese Mitschnitte enthalten eine Selektion der - aus meiner heutigen Sicht - relevanten Pakete.
+Wie habe ich selektiert?
+1. Herausfinden der beiden Ports für die Rückrichtung der aha-xml-Kommunikation über Port 49000.
+   (tcp.dstport==49000)and(tcp contains aha)
+2. Eintragen dieser beiden Ports an den Stellen 11111 und 22222:
+   (tcp.port==2002)or((udp.port==1900)and(udp contains "aha"))or((tcp.port==49000)and((tcp.port==11111)or(tcp.port==22222)))
+Durch diese Selektion werden alle Pakete der binären Kommunikation, sowie alle aha-relevanten Pakete von UPnP angezeigt.
+
+Nach einiger Zeit habe ich jeweils den Onboard-Schalter mehrfach getoggelt.
