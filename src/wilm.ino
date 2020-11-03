@@ -1,12 +1,14 @@
-/*catf*/	// spzielle Ergänzungen für eine Katzenklappe
-/*rtcm*/	// spzielle Ergänzungen für einen nicht immer vorhandenen Reset-resistenten Speicher
-
+#define CATF 0   // Ergänzungen für eine Katzenklappe
+#define RTCM 0   // Ergänzungen für einen nicht immer vorhandenen reset-resistenten Speicher
+#define TEMP 1   // Ergänzungen für Ausgabe von Temperaturmessungen
+#define DUMP 0   // binärer Dump der Kommunikation über Port 2002
 
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
 #include <ESP8266WebServer.h>               // für UDP
-#include <ESP8266HTTPUpdateServer.h>        // für UDP
+#include <ESP8266HTTPUpdateServer.h>        // für OTA-Update
 #include <ESP8266mDNS.h>                    // für MDNS
+/*rtcm*/#if RTCM == 1
 /*rtcm*/ extern "C" { 
 /*rtcm*/    #include "user_interface.h"         // für system_rtc_mem_read/write
 /*rtcm*/ }
@@ -17,6 +19,7 @@
 /*rtcm*/ #define RTC_INDEX      67
 /*rtcm*/ #define RTC_STARTMEM   68
 /*rtcm*/ #define RTC_ENDMEM    191
+/*rtcm*/#endif
 
 
 #define MYSSID "myssid"                     // Eintrag der SSID (Name des WLAN-Netzwerks)
@@ -27,7 +30,9 @@
 #define PROGRAMVERSION "20191231_000000"
 #define LED_ANT   2                         // IO der LED neben Antenne (Pin_D4)
 #define BUTTON    0                         // IO der Taste (Pin_D3)---Pressbutton---Gnd
+/*catf*/#if CATF == 1
 /*catf*/#define RELAIS1 12                  // IO des Relais (Pin_D6) => red button
+/*catf*/#endif
 
 #define swap16(x) ((((x)&0xff00)>>8) | ((((x)&0xff)<<8)))
 #define swap32(x) ((((x)&0xff000000)>>24) | (((x)&0xff00)<<8) | (((x)&0xff0000)>>8) | (((x)&0xff)<<24))
@@ -42,14 +47,16 @@ IPAddress gFritzIP(0,0,0,0);
 uint8_t gMac[6];                            // MAC vom ESP8266
 bool gSim=false;                            // true: nur Simulation beachten, false: echte Box und Simulation beachten
 int gOnoff=1;                               // 0:LED off, 1:LED on, erster Schaltzustand nach Booten
+/*temp*/#if TEMP == 1
+/*temp*/int gTemperat=170;
+/*temp*/#endif
 int gFritzMode=0;
 ESP8266WebServer gServer80(80);
 ESP8266HTTPUpdateServer gHttpUpdater;
+/*rctm*/#if RTCM == 1
 /*rctm*/uint32_t gMillisBB = 0;                // millis before boot (offset)
+/*rctm*/#endif
 
-
-int gCnt25=0;
-int gCnt33=0;
 
 
 void logging(const char *fmt,...)
@@ -88,8 +95,9 @@ char* watch(int sec=0) {
 }
 
 
+/*catf*/#if CATF == 1
 /*catf*/// Programmiertes Drücken der roten Taste der Katzenklappe
-/*catf*/void door(char *input="")               // "r03w02" entspricht 3sec rot, 2sec warten
+/*catf*/void door(char *input=(char*)"")               // "r03w02" entspricht 3sec rot, 2sec warten
 /*catf*/{
 /*catf*/    static unsigned long timer=0;
 /*catf*/    static char code[32]="";            // auszuführender Code
@@ -101,8 +109,8 @@ char* watch(int sec=0) {
 /*catf*/    }
 /*catf*/    if (timer!=0){                      // Endzeit ist eingetragen
 /*catf*/        if (millis()<timer) return;     // Endzeit noch nicht erreicht => fertig
-/*catf*/        if (code[0]=='r') {logging("%s: red end\n", watch());  digitalWrite(RELAIS1, 1);}
-/*catf*/        if (code[0]=='w') {logging("%s: wait end\n", watch());}
+/*catf*/        if (code[0]=='r') {logging("%s red toggled\n", watch());  digitalWrite(RELAIS1, 1);}
+/*catf*/        if (code[0]=='w') {logging("%s wait end\n", watch());}
 /*catf*/        timer=0;
 /*catf*/        strcpy(code, &code[3]);         // nächsten Code holen
 /*catf*/    }
@@ -116,8 +124,8 @@ char* watch(int sec=0) {
 /*catf*/            return;
 /*catf*/        }
 /*catf*/        timer=millis()+duration*1000;   // neue Endzeit eintragen
-/*catf*/        if      (code[0]=='r') {logging("%s: red start\n", watch());  digitalWrite(RELAIS1, 0);}
-/*catf*/        else if (code[0]=='w') {logging("%s: wait start\n", watch());}
+/*catf*/        if      (code[0]=='r') {/*logging("%s red start\n", watch());*/  digitalWrite(RELAIS1, 0);}
+/*catf*/        else if (code[0]=='w') {/*logging("%s wait start\n", watch())*/;}
 /*catf*/        else {                          // falsche Codes ignorieren
 /*catf*/            logging("ERROR: ignore wrong code\n");
 /*catf*/            timer=0;                    // alles löschen
@@ -127,6 +135,7 @@ char* watch(int sec=0) {
 /*catf*/    }
 /*catf*/    return;
 /*catf*/}
+/*catf*/#endif
 
 
 void handleRoot() {
@@ -166,7 +175,7 @@ void handleRoot() {
     gServer80.send(200, "text/html", htmlcode);
 }
 
-
+/*rtcm*/#if RTCM == 1
 /*rtcm*/void add_rtc(uint32_t data) {
 /*rtcm*/    uint32_t index;
 /*rtcm*/    system_rtc_mem_read(RTC_INDEX, &index, 4);      // get first empty index
@@ -174,14 +183,16 @@ void handleRoot() {
 /*rtcm*/    if (++index>RTC_ENDMEM) index=RTC_STARTMEM;
 /*rtcm*/    system_rtc_mem_write(RTC_INDEX, &index, 4);     // write new index
 /*rtcm*/}
+/*rtcm*/#endif
 
 
 void setup() {
     millis();                               // für richtige Zeit in Simulation
 
     pinMode(LED_ANT, OUTPUT);
+/*catf*/#if CATF == 1
 /*catf*/    pinMode(RELAIS1, OUTPUT); digitalWrite(RELAIS1, 1);              // Pin_D6 hat 3,3V, RELAIS1 ist aus (negative Logik)
-
+/*catf*/#endif
     ESP8266WiFiMulti wifiMulti;             // oder: WiFi.mode(WIFI_STA);
     wifiMulti.addAP(MYSSID, MYPASS);        // oder: WiFi.begin(MYSSID, MYPASS);
     wifiMulti.addAP(MY2SSID, MY2PASS);      //
@@ -218,12 +229,13 @@ void setup() {
         String tmp;
         tmp=String(&gLog[strlen(gLog)+1]);
         tmp+=String(gLog);
+/*rtcm*/#if RTCM == 1
 /*rtcm*/        uint32_t i;
 /*rtcm*/        uint32_t rtcStore;
 /*rtcm*/        uint32_t maxindex;
 /*rtcm*/        tmp+=String("---------------\n");
 /*rtcm*/        tmp+=watch();
-/*rtcm*/        tmp+=String(": <==== actual time\n---------------\n");
+/*rtcm*/        tmp+=String(" <==== actual time\n---------------\n");
 /*rtcm*/        system_rtc_mem_read(RTC_INDEX, &maxindex, 4);       // first empty index
 /*rtcm*/        for(i=RTC_STARTMEM; i<maxindex; i++) {
 /*rtcm*/            system_rtc_mem_read((uint8_t)i, &rtcStore, 4);  // first empty index
@@ -233,16 +245,11 @@ void setup() {
 /*rtcm*/                tmp+="####Fritzboot\n";
 /*rtcm*/            } else {
 /*rtcm*/                tmp+=String(watch(rtcStore / 1000));
-/*rtcm*/                if ((rtcStore&1)==1) tmp+=": new value: on  \n";
-/*rtcm*/                if ((rtcStore&1)==0) tmp+=": new value: off \n";
+/*rtcm*/                if ((rtcStore&1)==1) tmp+=" new value: on  \n";
+/*rtcm*/                if ((rtcStore&1)==0) tmp+=" new value: off \n";
 /*rtcm*/            }
 /*rtcm*/        }
-
-tmp+=String("---------------\n");
-tmp+=String(gCnt25);
-tmp+=String(":gCnt25\n");
-tmp+=String(gCnt33);
-tmp+=String(":gCnt33\n");
+/*rtcm*/#endif
 
         gServer80.send(200, "text/plain", tmp);
     });
@@ -252,7 +259,7 @@ tmp+=String(":gCnt33\n");
         gServer80.send(303);                // HTTP status 303 für redirect mit neuer Location
     });
 
-
+/*catf*/#if CATF == 1
 /*catf*/        gServer80.on("/door", []() {
 /*catf*/            String argument=gServer80.arg("argument");  // http://<ip address>/door?argument=default
 /*catf*/            logging("door argument: ");
@@ -261,10 +268,11 @@ tmp+=String(":gCnt33\n");
 /*catf*/            door(const_cast<char*>(argument.c_str()));
 /*catf*/            gServer80.send(200, "text/plain", "door argument: "+ argument);
 /*catf*/        });
-
-
+/*catf*/#endif
 
     gServer80.begin();
+	
+/*rtcm*/#if RTCM == 1
 /*rtcm*/    uint32_t rtcStore;
 /*rtcm*/    system_rtc_mem_read(RTC_MAGIC, &rtcStore, 4);
 /*rtcm*/    if (rtcStore!=MAGIC_RTC) {   // erstes Booten nach Poweroff
@@ -291,31 +299,17 @@ tmp+=String(":gCnt33\n");
 /*rtcm*/        logging("\n");
 /*rtcm*/        add_rtc(0xFFFFFFFF);
 /*rtcm*/    }
+/*rtcm*/#endif
 }
 
 
-// pause 0: weitersuchen
-// pause 1: Pause wird initiiert
 // mode 0: weitersuchen
 // mode 1: beim nächsten Mal udp.beginMulticast notwendig
-// mode 2: Pause abwarten
 // return 0: weitersuchen
 // return 1: Paket wurde erkannt
-int ssdp(int pause=0) {
+int ssdp() {
     static uint8_t mode=1;
-    static unsigned long timer=-1;
     static WiFiUDP udp;
-    if (pause!=0) {                         // Pause wird initiiert
-        if (mode==0) udp.stop();            // bei Bedarf upd freigeben
-        timer=millis()+1000*(gSim?2:145);   // 145 Sekunden Pause initiieren
-        ////if (mode!=2) logging("Start Pause\n");
-        mode=2;
-    }
-    if (mode==2) {
-        if (millis()<timer) return 0;       // Pause noch nicht vorbei
-        ////logging("Ende Pause\n");
-        mode=1;
-    }
     if (mode==1) {
         mode=0;
         udp.beginMulticast(gOwnIP, IPAddress(239,255,255,250), 1900);
@@ -349,6 +343,28 @@ int ssdp(int pause=0) {
     udp.stop();
     mode=1;                                 // neue Initialisierung notwendig
     return 1;
+}
+
+
+void notify(int mode) { // 0:byebye, 1:alive
+    WiFiUDP udp;
+    udp.beginPacketMulticast(IPAddress(239,255,255,250), 1900, gOwnIP);// Antwort zusammenstellen
+    sprintf(gPacket,
+        "NOTIFY * HTTP/1.1\r\n"
+        "HOST: 239.255.255.250:1900\r\n"
+        "LOCATION: http://%d.%d.%d.%d:49000/aha.xml\r\n"                        // gOwnIP
+        "SERVER: " DEVNAME " UPnP/1.0 AVM FRITZ!Powerline 546E 118.06.50\r\n"   // FriendlyName
+        "CACHE-CONTROL: max-age=1800\r\n"
+        "NT: urn:schemas-upnp-org:device:avm-aha:1\r\n"
+        "NTS: ssdp:%s\r\n"
+        "USN: uuid:4796e12e-ab96-4769-b0d0-%02X%02X%02X%02X%02X%02X::urn:schemas-upnp-org:device:avm-aha:1\r\n" // gMac[]
+        "\r\n",
+		gOwnIP[0],gOwnIP[1],gOwnIP[2],gOwnIP[3],
+		(mode?"alive":"byebye"),
+        gMac[0],gMac[1],gMac[2],gMac[3],gMac[4],gMac[5]);
+    udp.write(gPacket);
+    udp.endPacket();
+    udp.stop();
 }
 
 
@@ -429,8 +445,7 @@ int xml() {
             "Cache-Control: max-age=120\r\n"
             "Connection: close\r\n"
             "Content-Length: "+String(strlen(gPacket))+"\r\n"
-            "Content-Type: text/xml\r\n"
-            "ETag: \"0B2CBD318DC142AE8\"\r\n"
+            "Content-Type: text/xml\r\n"	// ohne "ETag: \"0B2CBD318DC142AE8\"\r\n"
             "Last-Modified: Thu, 01 Jan 1970 00:00:10 GMT\r\n"
             "Mime-Version: 1.0\r\n"
             "\r\n");
@@ -460,8 +475,7 @@ int xml() {
             "Cache-Control: max-age=120\r\n"
             "Connection: close\r\n"
             "Content-Length: "+String(strlen(gPacket))+"\r\n"
-            "Content-Type: text/xml\r\n"
-            "ETag: \"7F081B5FA3B015293\"\r\n"
+            "Content-Type: text/xml\r\n"	// ohne "ETag: \"7F081B5FA3B015293\"\r\n"
             "Last-Modified: Thu, 01 Jan 1970 00:00:20 GMT\r\n"
             "Mime-Version: 1.0\r\n"
             "\r\n");
@@ -471,7 +485,7 @@ int xml() {
         mode=1;
         return 1;
     }
-    ////logging("unknown GET\n");
+    logging("ERROR unknown GET\n");
     if (server.available()) client.stop();
     server.stop();
     mode=1;
@@ -498,6 +512,18 @@ void append_var(uint8_t *feld, uint16_t *pidx, uint16_t var, uint32_t val)
 }
 
 
+void dump(char *inout, uint8_t *start, uint32_t len)
+{
+	uint32_t i  =len+*start+*inout;i++; // for compiler messages
+/*dump*/#if DUMP == 1
+/*dump*/	logging("%s:", inout);
+/*dump*/	for(i=0; i<len; i++)
+/*dump*/		logging("%02x",	start[i]);
+/*dump*/	logging("\n");
+/*dump*/#endif
+}
+
+
 // mode 0: weitersuchen
 // mode 1: beim nächsten Mal server.begin() notwendig
 // return 0: keine Verbindung
@@ -516,10 +542,10 @@ int p2002()
         server.begin();
         timer=millis()+1000*   2;           // Sekunden Reaktionszeit auf erste Reaktion 
         ////logging("Server 2002 started\n\n");
-/*rtcm*/		add_rtc(0xFFFFFFFE);
+/*rtcm*/#if RTCM == 1
+/*rtcm*/        add_rtc(0xFFFFFFFE);
+/*rtcm*/#endif
     }
-if (millis()>timer-25000) gCnt25++;
-if (millis()>timer-17000) gCnt33++;
     if (millis()>timer) {
         logging("p2002-timeout\n");
         if (server.available()) client.stop();
@@ -536,24 +562,33 @@ if (millis()>timer-17000) gCnt33++;
     char* pPacket;
 #define PAYLOADLEN 330  // <-------------- Anpassen!!!!!!!!!!!
     uint8_t payload[PAYLOADLEN];
-    uint32_t paylen;
+    uint32_t i, paylen;
     pPacket=gPacket;
     if ((millis()>cyclical)||(localOnoff!=gOnoff)) {
-        //logging("fake-");
         localOnoff=gOnoff;
         cyclical=millis()+1000*   30;       // zyklisch alle 30 Sekunden Daten senden
         // Erzeugen eines fake-Pakets, damit Daten zyklisch oder wegen Tastendruck gesendet werden
-        len=30;
+/*temp*/#if TEMP == 1
+/*temp*/len=28*2;
+/*temp*/#else
+        len=28;
+/*temp*/#endif
         memset(gPacket, 0, len);
-        gPacket[0]=7;                                     // values
-        *(uint16_t*)&gPacket[2]=swap16(len);              // Länge
-        gPacket[19]=0x0f;                                 // 0x0f=Schaltzustand
-        *(uint32_t*)&gPacket[24]=swap32(gOnoff);          // Wert des Schaltzustands
+                     gPacket[ 0]=7;                    // values
+        *(uint16_t*)&gPacket[ 2]=swap16(28);           // Länge
+                     gPacket[16]=1;                    // Kennung für fake-Paket, sonst immer 0
+                     gPacket[19]=0x0f;                 // 0x0f=Schaltzustand
+        *(uint32_t*)&gPacket[24]=swap32(gOnoff);       // Wert des Schaltzustands
+/*temp*/#if TEMP == 1
+/*temp*/             gPacket[28+ 0]=7;                 // values
+/*temp*/*(uint16_t*)&gPacket[28+ 2]=swap16(28);        // Länge
+/*temp*/             gPacket[28+16]=1;                 // Kennung für fake-Paket, sonst immer 0
+/*temp*/             gPacket[28+19]=0x17;              // 0x17=Temperatur
+/*temp*/*(uint32_t*)&gPacket[28+24]=swap32(gTemperat); // Wert der Temperatur
+/*temp*/#endif
     } else {
         if (!client.available()) return 1;  // Verbindung ist da, aber (noch) keine Daten
-        //timer=millis()+1000*   25;          // mindestens alle 22 sec Datenverkehr (ping) [bei 25 gab es mal einen timeout]
-        //timer=millis()+1000*   33;          // mindestens alle 22 sec Datenverkehr (ping) [bei 33 gab es mal einen timeout]
-        timer=millis()+1000*   50;          // mindestens alle 22 sec Datenverkehr (ping)
+        timer=millis()+1000*   50;          // mindestens alle 22 sec Datenverkehr (ping) (timeout von 25 oder 33 war zu wenig)
         // Einlesen der empfangenen Pakete
         len=client.read((uint8_t*)gPacket, PACKETLEN);
         if (len==0) return 1;
@@ -570,26 +605,31 @@ if (millis()>timer-17000) gCnt33++;
             payload[11]=1;                                // 1=??
             *(uint32_t*)&payload[12]=swap32(0x22013);     // 0x22013=??
             client.write((const uint8_t*)payload, paylen);
+			dump((char*)"out", (uint8_t*)payload, paylen);
         } else if (pPacket[0]==3) { // drei (unklare Funktion, keine Antwort)
             //logging("drei\n");
             cyclical=millis()+1000*   30;  // erstes Starten des zyklischen Sendens von Daten
         } else if (pPacket[0]==5) { // conf (Konfiguration austauschen, spezifische Antwort)
-            logging("conf\n");
+            //logging("conf\n");
             memset(payload, 0, PAYLOADLEN);               // vorher alles löschen
             payload[0]=6;                                 // conf_re
             payload[1]=3;                                 // Version 3?
             payload[7]=1;                                 // 1=??
-            *(uint16_t*)&payload[16]=swap16(1000);        // 1000=??
+            *(uint16_t*)&payload[16]=swap16(1000);        // id:1000
             *(uint16_t*)&payload[18]=swap16(512);         // 512=??
-            *(uint16_t*)&payload[22]=swap16(2);           // 2=??
-            *(uint16_t*)&payload[26]=swap16(0x1280);      // Bitfeld für GUI-Elemente: Solltemperatur erscheint+Batteriestand bei 0x1170
+            *(uint16_t*)&payload[22]=swap16(2);           // Modell:2=Powerline546E
+/*temp*/#if TEMP == 1
+/*temp*/    *(uint16_t*)&payload[26]=swap16(0x1380);      // functionbitmask
+/*temp*/#else
+            *(uint16_t*)&payload[26]=swap16(0x1280);      // functionbitmask
+/*temp*/#endif
             strcpy((char*)&payload[28], DEVNAME);         // FriendlyName
-            *(uint32_t*)&payload[108]=swap32(2932);       // 0xb74=??
+            *(uint32_t*)&payload[108]=swap32(2932);       // manufacturer:0b74=AVM
             sprintf((char*)&payload[112], "%02X:%02X:%02X:%02X:%02X:%02X",
-                gMac[0], gMac[1], gMac[2], gMac[3], gMac[4], gMac[5]);
-            strcpy((char*)&payload[132], PROGRAMVERSION); // direkte Versionsausgabe
+                gMac[0], gMac[1], gMac[2], gMac[3], gMac[4], gMac[5]); // AIN
+            strcpy((char*)&payload[132], PROGRAMVERSION); // fwversion
             *(uint16_t*)&payload[158]=swap16(2);          // 2=??
-            *(uint16_t*)&payload[160]=swap16(1000);       // 1000=??
+            *(uint16_t*)&payload[160]=swap16(1000);       // id:1000
             uint16_t idx=168;
             append_var(payload, &idx, 0x0f, gOnoff);      // 0x0f=15 Schaltzustand 0/1
             append_var(payload, &idx, 0x23, 0xffff);      // 0x23=35
@@ -614,13 +654,18 @@ if (millis()>timer-17000) gCnt33++;
             append_var(payload, &idx, 0x13, 236159);      // 0x13=19 Spannung V [/1000]
             append_var(payload, &idx, 0x14, 0);           // 0x14=20 Leistung W [/100]
             append_var(payload, &idx, 0x15, 132794);      // 0x15=21 Energie kWh [/1000]
-            append_var(payload, &idx, 0x16, 0xfffffeec);  // 0x16=22
+/*temp*/#if TEMP == 1
+/*temp*/    append_var(payload, &idx, 0x17, gTemperat);   // 0x17=23 Temperatur [/10]
+/*temp*/#else
+            append_var(payload, &idx, 0x16, 0xfffffeec);  // 0x16=22 CosPhi [/1000] (-1...+1)
+/*temp*/#endif
             *(uint16_t*)&payload[166]=swap16(idx-168);    // Länge dieses Datenfeldes
             *(uint16_t*)&payload[2]=swap16(idx);          // Länge
             paylen=idx;
             client.write((const uint8_t*)payload, paylen);
+			dump((char*)"out", (uint8_t*)payload, paylen);
         } else if (pPacket[0]==7) { // values (einzelne Werte)
-            //logging("read\n");
+            //if (pPacket[16]==0) logging("read\n");
             if (pPacket[19]==0x0f) {
                 gOnoff=swap32(*(uint32_t*)&pPacket[24]);  // Daten aus Paket auslesen
                 memset(payload, 0, 36);                   // vorher alles löschen
@@ -631,21 +676,45 @@ if (millis()>timer-17000) gCnt33++;
                 *(uint32_t*)&payload[10]=swap32(0);       //
                 *(uint16_t*)&payload[14]=swap16(0x0c);    // Länge der Daten
                 uint16_t idx=16;
-                append_var(payload, &idx,  0x0f, gOnoff); // 0x0f=Schaltzustand
+                append_var(payload, &idx, 0x0f, gOnoff);  // 0x0f=Schaltzustand
                 *(uint16_t*)&payload[ 2]=swap16(idx);     // Länge
                 paylen=idx;
-                //logging("write: %d\n", gOnoff);
+                //if (pPacket[16]==0) logging("writeOnOff: %d\n", gOnoff);
+				//else                logging("cyclicOnOff: %d\n", gOnoff);
                 client.write((const uint8_t*)payload, paylen);
+				dump((char*)"out", (uint8_t*)payload, paylen);
             }
+/*temp*/#if TEMP == 1
+/*temp*/    if (pPacket[19]==0x17) {
+/*temp*/        memset(payload, 0, 36);                   // vorher alles löschen
+/*temp*/        payload[0]=7;                             // value
+/*temp*/        payload[1]=3;                             // Version 3?
+/*temp*/        *(uint32_t*)&payload[ 4]=swap32(1);       // 1=??
+/*temp*/        *(uint16_t*)&payload[ 8]=swap16(1000);    // 1000=??
+/*temp*/        *(uint32_t*)&payload[10]=swap32(0);       //
+/*temp*/        *(uint16_t*)&payload[14]=swap16(0x0c);    // Länge der Daten
+/*temp*/        uint16_t idx=16;
+/*temp*/        append_var(payload, &idx, 0x17, gTemperat);// 0x17=Temperatur
+/*temp*/        *(uint16_t*)&payload[ 2]=swap16(idx);     // Länge
+/*temp*/        paylen=idx;
+/*temp*/        //if (pPacket[16]==0) logging("writeTemp: %d\n", gTemperat);
+/*temp*/        //else                logging("cyclicTemp: %d\n", gTemperat);
+/*temp*/        client.write((const uint8_t*)payload, paylen);
+/*temp*/		dump((char*)"out", (uint8_t*)payload, paylen);
+/*temp*/    }
+/*temp*/#endif
         } else if (pPacket[0]==8) { // ping (regelmäßig alle 22sec, nahezu identische Antwort)
             //logging("ping %d\n", swap32(*(uint32_t*)&pPacket[8]));
-            int i;
             for(i=0; i<12; i++)
                 payload[i]=pPacket[i];
             payload[6]=0;
             payload[7]=0;
             paylen=12;
             client.write((const uint8_t*)payload, paylen);
+			dump((char*)"out", (uint8_t*)payload, paylen);
+/*temp*/#if TEMP == 1
+/*temp*/gTemperat++; ///////////////////////////////FAKE!!!!!!!!!!!!!!!!!!!!!!!!!!!
+/*temp*/#endif
         } else if (pPacket[0]==9) { // start (einmal zum Start des Devices, keine Antwort)
             //logging("start\n");
         } else {
@@ -659,6 +728,7 @@ if (millis()>timer-17000) gCnt33++;
             mode=1;
             return -1;
         }
+		dump((char*)"in ", (uint8_t*)pPacket, swap16(*(uint16_t*)&pPacket[2]));
         len-=swap16(*(uint16_t*)&pPacket[2]);
         if (len<=0) break;                                // Puffer komplett abgearbeitet
         pPacket+=swap16(*(uint16_t*)&pPacket[2]);         // Zeiger auf nächsten Befehl schieben
@@ -668,47 +738,62 @@ if (millis()>timer-17000) gCnt33++;
 }
 
 
-// gFritzMode 0: Einmalig ssdp
-// gFritzMode 1: Dauerschleife bei ssdp
+// gFritzMode 0: Einmalig byebye
+// gFritzMode 1: nach Wartezeit einmalig alive
 // gFritzMode 2: Abarbeitung xml
-// gFritzMode 3: einmalig beim Start von p2002 wegen Meldung
+// gFritzMode 3: einmalig beim Start von p2002 wegen Meldung und alive
 // gFritzMode 4: Dauerschleife bei p2002
 void actor() {
+    static uint32_t timer=0;
     int ret;
-
     if (gFritzMode==0) {
-        logging("FRITZ searching ... %s\n", watch());
+		notify(0);
+        //logging("%s ssdp byebye\n", watch());
         gFritzMode=1;
+		timer=millis()+2700;
+		return;
     }
-    else if (gFritzMode==1) {
-        if (ssdp()==0) return;
-        //logging("FRITZ found %s %s\n", (gSim?"(sim) ":""), watch());
-        gFritzMode=2;
+    if (gFritzMode==1) {
+        if (millis()>=timer) {
+ 		    notify(1);
+            //logging("%s ssdp alive\n", watch());
+			gFritzMode=2;
+			return;
+		}
     }
-    else if (gFritzMode==2) {
+    if (gFritzMode==2) {
         ret=xml();
         if (ret==0) return;
         if (ret==-1) {
             logging("ERROR xml\n");
             gFritzMode=0;
-            ssdp(1);
             return;
         }
+        //logging("%s xml ok\n", watch());
         gFritzMode=3;
+		return;
     }
-    else {  // gFritzMode==3 und gFritzMode==4
+		
+    if ((gFritzMode==3)||(gFritzMode==4)) {
         ret=p2002();
         if (ret==0) return;
         if (ret==-1) {
             logging("ERROR p2002\n");
             gFritzMode=0;
-            ssdp(1);
             return;
         }
-        if (gFritzMode==4) return;
-        logging("FRITZ connected %s\n", watch());
-        gFritzMode=4;
-    }
+        if (gFritzMode==3) {
+			notify(1);
+			//logging("%s ssdp alive\n", watch());
+			logging("%s FRITZ connected\n", watch());
+			gFritzMode=4;
+			return;
+		}
+		// gFritzMode==4
+		if (ssdp()==1) {
+			//logging("%s ssdp ok\n", watch());
+		}
+    }		
 }
 
 
@@ -733,29 +818,28 @@ void loop() {
     if (lastOnoff!=gOnoff) {
         lastOnoff=gOnoff;
         digitalWrite(LED_ANT, gOnoff^1);    // LED aktualisieren (Schreiben mit negativer Logik)
-        logging("new value: %s %s\n", (gOnoff==0?"off":"on "), watch());
-/*rtcm*/	add_rtc(((millis()+gMillisBB)&0xFFFFFF00)|gOnoff);
-		
+        logging("%s new value: %s\n", watch(), (gOnoff==0?"off":"on "));
+/*rtcm*/#if RTCM == 1
+/*rtcm*/    add_rtc(((millis()+gMillisBB)&0xFFFFFF00)|gOnoff);
+/*rtcm*/#endif        
     }
 
     // gOnoff im Fritz-Actor darstellen
     actor();
-	
+   
+/*catf*/#if CATF == 1   
 /*catf*/    static int catflapOnoff=99;
-/*catf*/	door();
-/*catf*/    //if (catflapOnoff==99)                 door("r30");             // Tastensperre an 
-/*catf*/    //if ((gOnoff==1) && (catflapOnoff==0)) door("r30w02r05w02r30"); // Tastensperre aus, Veterinärmodus ein, Tastensperre an
-/*catf*/    //if ((gOnoff==0) && (catflapOnoff==1)) door("r30w02r05w02r30"); // Tastensperre aus, Veterinärmodus aus, Tastensperre an
-/*catf*/    if ((gOnoff==1) && (catflapOnoff==0)) door("r05"); // Veterinärmodus ein
-/*catf*/    if ((gOnoff==0) && (catflapOnoff==1)) door("r05"); // Veterinärmodus aus
+/*catf*/    door((char*)"");
+/*catf*/    if ((gOnoff==1) && (catflapOnoff==0)) door((char*)"r05"); // Veterinärmodus ein
+/*catf*/    if ((gOnoff==0) && (catflapOnoff==1)) door((char*)"r05"); // Veterinärmodus aus
 /*catf*/    catflapOnoff=gOnoff;
-
-	
+/*catf*/#endif
+    
+/*rtcm*/#if RTCM == 1
 /*rtcm*/    static uint32_t timer=0;
 /*rtcm*/    if (millis()>=timer) {                          // schreibe alle 10 Sekunden die Zeit in rtc
 /*rtcm*/        system_rtc_mem_write(RTC_AFTERBOOT, &timer, 4);
 /*rtcm*/        timer=millis()+10*1000;
 /*rtcm*/    }
-
+/*rtcm*/#endif
 }
-//(udp contains "-aha")or(tcp.port==49000)or(tcp.port==2002)
