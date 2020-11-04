@@ -1,7 +1,7 @@
 #define CATF 0   // Ergänzungen für eine Katzenklappe
 #define RTCM 0   // Ergänzungen für einen nicht immer vorhandenen reset-resistenten Speicher
 #define TEMP 1   // Ergänzungen für Ausgabe von Temperaturmessungen
-#define DUMP 0   // binärer Dump der Kommunikation über Port 2002
+#define DUMP 1   // hex-Dump der Kommunikation über Port 2002
 
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
@@ -516,7 +516,7 @@ void dump(char *inout, uint8_t *start, uint32_t len)
 {
 	uint32_t i  =len+*start+*inout;i++; // for compiler messages
 /*dump*/#if DUMP == 1
-/*dump*/	logging("%s:", inout);
+/*dump*/	logging("%s%s:", &watch()[7], inout);
 /*dump*/	for(i=0; i<len; i++)
 /*dump*/		logging("%02x",	start[i]);
 /*dump*/	logging("\n");
@@ -560,7 +560,7 @@ int p2002()
 
     int len;
     char* pPacket;
-#define PAYLOADLEN 330  // <-------------- Anpassen!!!!!!!!!!!
+#define PAYLOADLEN 340  // <-------------- Anpassen!!!!!!!!!!!
     uint8_t payload[PAYLOADLEN];
     uint32_t i, paylen;
     pPacket=gPacket;
@@ -594,6 +594,7 @@ int p2002()
         if (len==0) return 1;
     }
     while(1) {
+		dump((char*)"i", (uint8_t*)pPacket, swap16(*(uint16_t*)&pPacket[2]));
         if (pPacket[0]==0) {// init (zu Beginn der Kommunikation, spezifische Antwort)
             //logging("init\n");
             paylen=16;
@@ -605,7 +606,7 @@ int p2002()
             payload[11]=1;                                // 1=??
             *(uint32_t*)&payload[12]=swap32(0x22013);     // 0x22013=??
             client.write((const uint8_t*)payload, paylen);
-			dump((char*)"out", (uint8_t*)payload, paylen);
+			dump((char*)"o", (uint8_t*)payload, paylen);
         } else if (pPacket[0]==3) { // drei (unklare Funktion, keine Antwort)
             //logging("drei\n");
             cyclical=millis()+1000*   30;  // erstes Starten des zyklischen Sendens von Daten
@@ -654,16 +655,16 @@ int p2002()
             append_var(payload, &idx, 0x13, 236159);      // 0x13=19 Spannung V [/1000]
             append_var(payload, &idx, 0x14, 0);           // 0x14=20 Leistung W [/100]
             append_var(payload, &idx, 0x15, 132794);      // 0x15=21 Energie kWh [/1000]
+            append_var(payload, &idx, 0x16, 0xfffffeec);  // 0x16=22 CosPhi [/1000] (-1...+1)
 /*temp*/#if TEMP == 1
 /*temp*/    append_var(payload, &idx, 0x17, gTemperat);   // 0x17=23 Temperatur [/10]
-/*temp*/#else
-            append_var(payload, &idx, 0x16, 0xfffffeec);  // 0x16=22 CosPhi [/1000] (-1...+1)
 /*temp*/#endif
+			if (idx-PAYLOADLEN>0) logging("ERROR: PAYLOADLEN %d too small\n", idx-PAYLOADLEN);
             *(uint16_t*)&payload[166]=swap16(idx-168);    // Länge dieses Datenfeldes
             *(uint16_t*)&payload[2]=swap16(idx);          // Länge
             paylen=idx;
             client.write((const uint8_t*)payload, paylen);
-			dump((char*)"out", (uint8_t*)payload, paylen);
+			dump((char*)"o", (uint8_t*)payload, paylen);
         } else if (pPacket[0]==7) { // values (einzelne Werte)
             //if (pPacket[16]==0) logging("read\n");
             if (pPacket[19]==0x0f) {
@@ -682,7 +683,7 @@ int p2002()
                 //if (pPacket[16]==0) logging("writeOnOff: %d\n", gOnoff);
 				//else                logging("cyclicOnOff: %d\n", gOnoff);
                 client.write((const uint8_t*)payload, paylen);
-				dump((char*)"out", (uint8_t*)payload, paylen);
+				dump((char*)"o", (uint8_t*)payload, paylen);
             }
 /*temp*/#if TEMP == 1
 /*temp*/    if (pPacket[19]==0x17) {
@@ -700,7 +701,7 @@ int p2002()
 /*temp*/        //if (pPacket[16]==0) logging("writeTemp: %d\n", gTemperat);
 /*temp*/        //else                logging("cyclicTemp: %d\n", gTemperat);
 /*temp*/        client.write((const uint8_t*)payload, paylen);
-/*temp*/		dump((char*)"out", (uint8_t*)payload, paylen);
+/*temp*/		dump((char*)"o", (uint8_t*)payload, paylen);
 /*temp*/    }
 /*temp*/#endif
         } else if (pPacket[0]==8) { // ping (regelmäßig alle 22sec, nahezu identische Antwort)
@@ -711,7 +712,7 @@ int p2002()
             payload[7]=0;
             paylen=12;
             client.write((const uint8_t*)payload, paylen);
-			dump((char*)"out", (uint8_t*)payload, paylen);
+			dump((char*)"o", (uint8_t*)payload, paylen);
 /*temp*/#if TEMP == 1
 /*temp*/gTemperat++; ///////////////////////////////FAKE!!!!!!!!!!!!!!!!!!!!!!!!!!!
 /*temp*/#endif
@@ -728,7 +729,6 @@ int p2002()
             mode=1;
             return -1;
         }
-		dump((char*)"in ", (uint8_t*)pPacket, swap16(*(uint16_t*)&pPacket[2]));
         len-=swap16(*(uint16_t*)&pPacket[2]);
         if (len<=0) break;                                // Puffer komplett abgearbeitet
         pPacket+=swap16(*(uint16_t*)&pPacket[2]);         // Zeiger auf nächsten Befehl schieben
