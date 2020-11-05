@@ -20,3 +20,5 @@ Die Onboard-LED des ESP8266 kann mit der Onboard-Taste und allen anderen "üblic
 Ich hatte angefangen mit der Arduino-IDE unter Windows zu programmieren. Inzwischen nutze ich ausschließlich den Linux-Zweig, der in der IDE unter "zusätzliche Boardverwalter-URLs" heruntergeladen wird, verbunden mit einem Makefile. In diesem Zweig enthalten ist eine Tests-Host-Umgebung für Linux, die ich ausgiebig nutze. Damit laufen die identischen Quellen sowohl direkt auf dem ESP8266 als auch in Simulation unter Linux! Kleine Patches für die unvollständige Tests-Host-Umgebung liefere ich hier mit. Meine gesamte aktuelle Installation kann bei Bedarf mit install/install.sh nachvollzogen werden und ist unter doku/install.txt etwas erklärt.
  
 Nebenbei ist eine Simulation (test/fbsim) entstanden, die rudimentär die SmartHome-Kommunikation der Fritzbox mit Wilm nachstellt.
+
+Unter https://www.ip-phone-forum.de/threads/wilm-selbstprogrammierter-fritz-aktuator.308314 wird eine Diskussion zu wilm geführt.
